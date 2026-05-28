@@ -31,6 +31,10 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_gain": 1.75,
         "edge_gamma": 0.85,
         "edge_autocontrast_cutoff": 0.08,
+        "edge_small_weight": 0.72,
+        "edge_threshold": 16,
+        "edge_expand": 3,
+        "edge_broad_suppression": 0.18,
         "autocontrast_cutoff": 0.04,
         "jpeg_noise_reduce": 0,
     },
@@ -49,6 +53,10 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_gain": 2.20,
         "edge_gamma": 0.72,
         "edge_autocontrast_cutoff": 0.12,
+        "edge_small_weight": 0.82,
+        "edge_threshold": 12,
+        "edge_expand": 3,
+        "edge_broad_suppression": 0.12,
         "autocontrast_cutoff": 0.06,
         "jpeg_noise_reduce": 0,
     },
@@ -67,6 +75,10 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_gain": 1.35,
         "edge_gamma": 1.00,
         "edge_autocontrast_cutoff": 0.04,
+        "edge_small_weight": 0.62,
+        "edge_threshold": 22,
+        "edge_expand": 3,
+        "edge_broad_suppression": 0.28,
         "autocontrast_cutoff": 0.025,
         "jpeg_noise_reduce": 0,
     },
@@ -85,6 +97,10 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_gain": 1.55,
         "edge_gamma": 0.95,
         "edge_autocontrast_cutoff": 0.10,
+        "edge_small_weight": 0.70,
+        "edge_threshold": 20,
+        "edge_expand": 3,
+        "edge_broad_suppression": 0.22,
         "autocontrast_cutoff": 0.035,
         "jpeg_noise_reduce": 1,
     },
@@ -207,19 +223,61 @@ def make_edge_mask_from_luma(
     gain: float,
     gamma: float,
     autocontrast_cutoff: float,
+    small_weight: float,
+    threshold: int,
+    expand: int,
+    broad_suppression: float,
 ) -> Image.Image:
     """
-    Build a text/line-oriented edge mask from luminance.
+    Build a text/line-oriented mask from luminance.
 
-    A morphological gradient is used instead of FIND_EDGES.
-    This tends to be less harsh on flyer backgrounds and JPEG noise.
+    Small and medium morphological gradients are blended so thin text
+    strokes get priority over broad photo/illustration boundaries.
     """
+    if small_weight < 0 or small_weight > 1:
+        raise ValueError("small edge weight must be between 0 and 1")
+
+    if threshold < 0 or threshold > 255:
+        raise ValueError("edge threshold must be between 0 and 255")
+
+    if expand < 1 or expand % 2 == 0:
+        raise ValueError("edge expand must be a positive odd integer")
+
+    if broad_suppression < 0 or broad_suppression > 1:
+        raise ValueError("broad edge suppression must be between 0 and 1")
+
     base = luma.convert("L")
 
-    local_max = base.filter(ImageFilter.MaxFilter(3))
-    local_min = base.filter(ImageFilter.MinFilter(3))
-    edges = ImageChops.difference(local_max, local_min)
+    small_edges = ImageChops.difference(
+        base.filter(ImageFilter.MaxFilter(3)),
+        base.filter(ImageFilter.MinFilter(3)),
+    )
+    medium_edges = ImageChops.difference(
+        base.filter(ImageFilter.MaxFilter(5)),
+        base.filter(ImageFilter.MinFilter(5)),
+    )
+
+    edges = Image.blend(medium_edges, small_edges, small_weight)
     edges = ImageOps.autocontrast(edges, cutoff=autocontrast_cutoff)
+
+    if threshold > 0:
+        scale = 255 / (255 - threshold)
+        edges = edges.point(
+            lambda v: 0 if v <= threshold else min(255, round((v - threshold) * scale))
+        )
+
+    if broad_suppression > 0:
+        broad_edges = ImageChops.difference(
+            base.filter(ImageFilter.MaxFilter(9)),
+            base.filter(ImageFilter.MinFilter(9)),
+        )
+        broad_excess = ImageChops.subtract(broad_edges, small_edges)
+        broad_excess = broad_excess.filter(ImageFilter.GaussianBlur(1.0))
+        penalty = broad_excess.point(lambda v: round(v * broad_suppression))
+        edges = ImageChops.subtract(edges, penalty)
+
+    if expand > 1:
+        edges = edges.filter(ImageFilter.MaxFilter(expand))
 
     if blur > 0:
         edges = edges.filter(ImageFilter.GaussianBlur(blur))
@@ -297,6 +355,10 @@ def enhance_for_readability(
             gain=float(p["edge_gain"]),
             gamma=float(p["edge_gamma"]),
             autocontrast_cutoff=float(p["edge_autocontrast_cutoff"]),
+            small_weight=float(p["edge_small_weight"]),
+            threshold=int(p["edge_threshold"]),
+            expand=int(p["edge_expand"]),
+            broad_suppression=float(p["edge_broad_suppression"]),
         )
 
         y_sharp = y.filter(

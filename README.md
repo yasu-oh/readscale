@@ -2,24 +2,18 @@
 
 **ReadScale** は、チラシ・スライド・スクリーンショット・資料画像など、文字を含む画像を読みやすく拡大するための小さな画像アップスケールツールです。
 
-画像を倍率指定で拡大しつつ、文字・罫線・アイコンなどの輪郭を補正して、可読性を向上させます。
+倍率指定のリサイズに加えて、文字・罫線・アイコンの輪郭や明暗差を補正し、画像全体を過度に加工せずに可読性を高めます。
 
 ## 特長
 
-- デフォルトで画像を3倍に拡大
-- フォルダ一括処理に対応
-- 出力ファイル名を省略可能
-- 出力ファイル名を省略した場合は `元ファイル名_readscale.拡張子` で保存
-- `--scale` で任意の倍率を指定可能
-- チラシ、ポスター、スライド、スクリーンショット、UI画像向け
+- デフォルトで画像を3倍に拡大。`--scale` で任意の倍率を指定可能
 - 文字背景の分離を高める輝度トーンカーブ
 - 小さな文字や罫線を持ち上げる局所コントラスト補正
 - 文字や罫線に効きやすいエッジ強調処理
-- 軽いコントラスト・色味補正
+- ファイル単位・フォルダ一括処理に対応
+- 出力先を省略した場合は自動で保存名を生成
 - PNG / JPEG / WebP / BMP / TIFF 出力に対応
-- CLIで簡単に実行可能
-- AIモデル不要
-- Pillowのみでローカル実行可能
+- AIモデル不要。Pillowのみでローカル実行可能
 
 ## ReadScale が解決すること
 
@@ -43,8 +37,6 @@ ReadScale は、特に以下のような画像に向いています。
 pip install pillow
 ```
 
-リポジトリを取得します。
-
 ```bash
 git clone https://github.com/yasu-oh/readscale.git
 cd readscale
@@ -52,114 +44,41 @@ cd readscale
 
 ## 使い方
 
-### 単一ファイルの処理
-出力ファイル名を省略できます。
+### ファイルを処理
 
 ```bash
 python readscale.py input.png
 ```
 
-この場合、入力ファイルと同じディレクトリに `input_readscale.png` として保存されます。
-
-出力ファイル名を明示することもできます。
+出力先を省略すると、入力画像と同じディレクトリに `input_readscale.png` のような名前で保存されます。出力ファイルを指定することもできます。
 
 ```bash
 python readscale.py input.png output.png
 ```
 
-### フォルダ一括処理
-フォルダを指定することで、中の対応画像をすべて処理できます。
+### フォルダを一括処理
 
 ```bash
 python readscale.py input_folder/
 ```
 
-この場合、`input_folder_readscale/` というフォルダが作成され、その中に処理済み画像が保存されます。
-
-出力先フォルダを明示的に指定することも可能です。
+出力先を省略すると、`input_folder_readscale/` に処理済み画像を保存します。出力先フォルダを指定することもできます。
 
 ```bash
 python readscale.py input_folder/ output_results/
 ```
 
-デフォルトでは、元画像を **3倍** に拡大します。
-例: `1000 x 1413 px → 3000 x 4239 px`
+## よく使う指定
 
-## 出力ファイル名
-
-- **ファイル指定時**: 省略時は `元ファイル名_readscale.拡張子` となります。
-- **フォルダ指定時**: 省略時は `元フォルダ名_readscale/` となります。
-
-## 倍率指定
-
-`--scale` で拡大倍率を指定できます。
-
-### 4倍に拡大
-```bash
-python readscale.py input.png --scale 4
-```
-
-### 小数倍率も指定できます
-```bash
-python readscale.py input.png --scale 1.5
-```
-
-## 使用例
-
-### 基本的なアップスケール
-```bash
-python readscale.py input.png
-```
-
-### 小さい文字をより強めに補正
-```bash
-python readscale.py input.png --preset text
-```
-
-### 写真が多い画像向けに自然に補正
-```bash
-python readscale.py input.png --preset soft
-```
-
-### ノイズ感を少し抑えて補正
-```bash
-python readscale.py input.png --preset clean
-```
-
-### 自動コントラスト補正を無効化
-```bash
-python readscale.py input.png --no-autocontrast
-```
-
-### 輝度トーンカーブを無効化
-```bash
-python readscale.py input.png --no-tone-curve
-```
-
-### 局所コントラスト補正を無効化
-```bash
-python readscale.py input.png --no-local-contrast
-```
-
-### エッジ強調を無効化
-```bash
-python readscale.py input.png --no-edge-sharpen
-```
-
-### JPEG / WebP の品質を指定
-```bash
-python readscale.py input.jpg --quality 95
-```
-
-### リサイズ方式を指定
-```bash
-python readscale.py input.png --resample bicubic
-```
-
-### DPIメタデータを引き継がない
-```bash
-python readscale.py input.png --no-keep-dpi
-```
+| 目的 | コマンド |
+| :--- | :--- |
+| 標準設定で処理 | `python readscale.py input.png` |
+| 小さい文字を強めに補正 | `python readscale.py input.png --preset text` |
+| 写真やイラストを自然に補正 | `python readscale.py input.png --preset soft` |
+| JPEGノイズを少し抑える | `python readscale.py input.jpg --preset clean` |
+| 4倍に拡大 | `python readscale.py input.png --scale 4` |
+| リサイズ方式を変更 | `python readscale.py input.png --resample bicubic` |
+| JPEG / WebP の品質を指定 | `python readscale.py input.jpg --quality 95` |
 
 ## プリセット
 
@@ -171,37 +90,6 @@ python readscale.py input.png --no-keep-dpi
 | `clean` | JPEGノイズなどを少し抑えたい場合向け |
 
 デフォルトは `flyer` です。
-
-```bash
-python readscale.py input.png --preset flyer
-```
-
-## 推奨設定
-
-### チラシ・ポスター向け
-```bash
-python readscale.py input.png
-```
-
-### 小さい文字が多い画像向け
-```bash
-python readscale.py input.png --preset text
-```
-
-### 写真を含む資料向け
-```bash
-python readscale.py input.png --preset soft
-```
-
-### JPEGノイズが気になる画像向け
-```bash
-python readscale.py input.jpg --preset clean
-```
-
-### 大きく印刷・表示したい場合
-```bash
-python readscale.py input.png --scale 4
-```
 
 ## オプション
 
@@ -232,44 +120,31 @@ python readscale.py input.png --scale 4
 
 通常はデフォルトの `lanczos` のままで問題ありません。
 
-## 処理の流れ
+## 処理概要
 
-ReadScale は、おおまかに以下の処理を行います。
+ReadScale は、画像全体を一律に強くシャープ化するのではなく、輝度成分を中心に処理して文字や線の読みやすさを補正します。
 
 1. 入力画像を読み込む
-2. EXIFの向き情報を補正
-3. 指定倍率で画像を拡大
-4. 指定された方式で高品質リサイズ
-5. 軽い自動コントラスト補正
-6. 明るさ・コントラストを微調整
-7. 輝度トーンカーブで文字と背景の分離を補正
-8. 局所コントラストで小さな文字や罫線を補正
-9. 画像からエッジマスクを生成
-10. 文字や罫線などのエッジ部分を中心にシャープ化
-11. 色味を微調整
-12. PNG / JPEG / WebP / BMP / TIFF などで保存
+2. EXIF の向き情報を反映し、表示上の向きを正しく補正する
+3. 透過情報がある画像はアルファチャンネルを保持したまま、処理しやすい RGB / RGBA に変換する
+4. `--scale` で指定された倍率に合わせて出力サイズを計算する
+5. `--resample` で指定された方式を使い、画像を高品質にリサイズする
+6. RGB 画像を YCbCr に変換し、輝度成分と色成分を分ける
+7. 必要に応じて輝度成分へ軽い自動コントラスト補正をかける
+8. プリセットに応じて明るさとコントラストを微調整する
+9. 輝度トーンカーブで、文字と背景の明暗差が出やすいように補正する
+10. 局所コントラスト補正で、小さな文字や細い罫線を持ち上げる
+11. 輝度画像からエッジマスクを作り、文字・罫線・アイコンなどの輪郭部分を検出する
+12. エッジマスクを使って、輪郭部分を中心にアンシャープマスクを適用する
+13. 輝度成分と色成分を再結合し、色味を軽く整える
+14. JPEG の場合は必要に応じて透過部分を白背景に合成する
+15. PNG / JPEG / WebP / BMP / TIFF など、出力パスの拡張子に合わせて保存する
 
-この処理により、画像全体を過度に加工せず、文字や線の読みやすさを改善します。
+この流れにより、写真やイラスト部分の自然さを保ちながら、文字や線のような読みやすさに効く部分を中心に補正します。
 
-## 対応形式
+## 対応形式と制限
 
-入力形式は Pillow が対応している形式に依存します。
-
-よく使う入力形式:
-* PNG
-* JPEG
-* WebP
-* BMP
-* TIFF
-
-出力形式:
-* PNG
-* JPEG
-* WebP
-* BMP
-* TIFF
-
-## 制限事項
+入力形式は Pillow が対応している形式に依存します。出力は PNG / JPEG / WebP / BMP / TIFF に対応しています。
 
 ReadScale は AI 超解像モデルではありません。
 リサイズと画像補正によって可読性を改善しますが、元画像に存在しない細部を完全に復元することはできません。

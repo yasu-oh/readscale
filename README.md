@@ -12,6 +12,8 @@
 - 出力ファイル名を省略した場合は `元ファイル名_readscale.拡張子` で保存
 - `--scale` で任意の倍率を指定可能
 - チラシ、ポスター、スライド、スクリーンショット、UI画像向け
+- 文字背景の分離を高める輝度トーンカーブ
+- 小さな文字や罫線を持ち上げる局所コントラスト補正
 - 文字や罫線に効きやすいエッジ強調処理
 - 軽いコントラスト・色味補正
 - PNG / JPEG / WebP / BMP / TIFF 出力に対応
@@ -129,6 +131,16 @@ python readscale.py input.png --preset clean
 python readscale.py input.png --no-autocontrast
 ```
 
+### 輝度トーンカーブを無効化
+```bash
+python readscale.py input.png --no-tone-curve
+```
+
+### 局所コントラスト補正を無効化
+```bash
+python readscale.py input.png --no-local-contrast
+```
+
 ### エッジ強調を無効化
 ```bash
 python readscale.py input.png --no-edge-sharpen
@@ -201,6 +213,8 @@ python readscale.py input.png --scale 4
 | `--preset` | `flyer` | 補正プリセット |
 | `--resample` | `lanczos` | リサイズ方式 |
 | `--no-autocontrast` | 無効 | 自動コントラスト補正を無効化 |
+| `--no-tone-curve` | 無効 | 文字背景の分離を高める輝度トーンカーブを無効化 |
+| `--no-local-contrast` | 無効 | 小さな文字や罫線向けの局所コントラスト補正を無効化 |
 | `--no-edge-sharpen` | 無効 | エッジ強調を無効化 |
 | `--quality` | `95` | JPEG / WebP の保存品質 |
 | `--no-keep-dpi` | 無効 | 入力画像のDPIメタデータを引き継がない |
@@ -227,10 +241,13 @@ ReadScale は、おおまかに以下の処理を行います。
 3. 指定倍率で画像を拡大
 4. 指定された方式で高品質リサイズ
 5. 軽い自動コントラスト補正
-6. 明るさ・コントラスト・色味を微調整
-7. 画像からエッジマスクを生成
-8. 文字や罫線などのエッジ部分を中心にシャープ化
-9. PNG / JPEG / WebP / BMP / TIFF などで保存
+6. 明るさ・コントラストを微調整
+7. 輝度トーンカーブで文字と背景の分離を補正
+8. 局所コントラストで小さな文字や罫線を補正
+9. 画像からエッジマスクを生成
+10. 文字や罫線などのエッジ部分を中心にシャープ化
+11. 色味を微調整
+12. PNG / JPEG / WebP / BMP / TIFF などで保存
 
 この処理により、画像全体を過度に加工せず、文字や線の読みやすさを改善します。
 

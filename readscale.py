@@ -19,6 +19,10 @@ PRESETS: dict[str, dict[str, float | int]] = {
     "flyer": {
         "luma_brightness": 1.00,
         "luma_contrast": 1.08,
+        "tone_curve": 0.16,
+        "local_contrast_radius": 1.35,
+        "local_contrast_percent": 26,
+        "local_contrast_threshold": 4,
         "color": 1.02,
         "sharp_radius": 0.72,
         "sharp_percent": 125,
@@ -26,12 +30,17 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_blur": 0.55,
         "edge_gain": 1.75,
         "edge_gamma": 0.85,
+        "edge_autocontrast_cutoff": 0.08,
         "autocontrast_cutoff": 0.04,
         "jpeg_noise_reduce": 0,
     },
     "text": {
         "luma_brightness": 1.00,
         "luma_contrast": 1.14,
+        "tone_curve": 0.24,
+        "local_contrast_radius": 1.00,
+        "local_contrast_percent": 38,
+        "local_contrast_threshold": 3,
         "color": 1.00,
         "sharp_radius": 0.60,
         "sharp_percent": 165,
@@ -39,12 +48,17 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_blur": 0.35,
         "edge_gain": 2.20,
         "edge_gamma": 0.72,
+        "edge_autocontrast_cutoff": 0.12,
         "autocontrast_cutoff": 0.06,
         "jpeg_noise_reduce": 0,
     },
     "soft": {
         "luma_brightness": 1.00,
         "luma_contrast": 1.04,
+        "tone_curve": 0.07,
+        "local_contrast_radius": 1.65,
+        "local_contrast_percent": 14,
+        "local_contrast_threshold": 6,
         "color": 1.02,
         "sharp_radius": 0.85,
         "sharp_percent": 85,
@@ -52,12 +66,17 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_blur": 0.75,
         "edge_gain": 1.35,
         "edge_gamma": 1.00,
+        "edge_autocontrast_cutoff": 0.04,
         "autocontrast_cutoff": 0.025,
         "jpeg_noise_reduce": 0,
     },
     "clean": {
         "luma_brightness": 1.00,
         "luma_contrast": 1.06,
+        "tone_curve": 0.12,
+        "local_contrast_radius": 1.45,
+        "local_contrast_percent": 20,
+        "local_contrast_threshold": 5,
         "color": 1.01,
         "sharp_radius": 0.75,
         "sharp_percent": 105,
@@ -65,6 +84,7 @@ PRESETS: dict[str, dict[str, float | int]] = {
         "edge_blur": 0.70,
         "edge_gain": 1.55,
         "edge_gamma": 0.95,
+        "edge_autocontrast_cutoff": 0.10,
         "autocontrast_cutoff": 0.035,
         "jpeg_noise_reduce": 1,
     },
@@ -141,11 +161,52 @@ def apply_gamma(mask: Image.Image, gamma: float) -> Image.Image:
     return mask.point(lut)
 
 
+def apply_s_curve(luma: Image.Image, strength: float) -> Image.Image:
+    """Apply a gentle luminance S-curve for better text/background separation."""
+    if strength < 0 or strength > 1:
+        raise ValueError("tone curve strength must be between 0 and 1")
+
+    if strength <= 0:
+        return luma
+
+    lut = []
+    for i in range(256):
+        x = i / 255.0
+        smooth = x * x * (3.0 - 2.0 * x)
+        y = (x * (1.0 - strength)) + (smooth * strength)
+        lut.append(min(255, max(0, round(y * 255))))
+
+    return luma.point(lut)
+
+
+def apply_local_contrast(
+    luma: Image.Image,
+    radius: float,
+    percent: int,
+    threshold: int,
+) -> Image.Image:
+    """Lift small text and line details without globally sharpening the image."""
+    if percent <= 0:
+        return luma
+
+    if radius <= 0:
+        raise ValueError("local contrast radius must be greater than 0")
+
+    return luma.filter(
+        ImageFilter.UnsharpMask(
+            radius=radius,
+            percent=percent,
+            threshold=threshold,
+        )
+    )
+
+
 def make_edge_mask_from_luma(
     luma: Image.Image,
     blur: float,
     gain: float,
     gamma: float,
+    autocontrast_cutoff: float,
 ) -> Image.Image:
     """
     Build a text/line-oriented edge mask from luminance.
@@ -158,7 +219,7 @@ def make_edge_mask_from_luma(
     local_max = base.filter(ImageFilter.MaxFilter(3))
     local_min = base.filter(ImageFilter.MinFilter(3))
     edges = ImageChops.difference(local_max, local_min)
-    edges = ImageOps.autocontrast(edges)
+    edges = ImageOps.autocontrast(edges, cutoff=autocontrast_cutoff)
 
     if blur > 0:
         edges = edges.filter(ImageFilter.GaussianBlur(blur))
@@ -193,6 +254,8 @@ def enhance_for_readability(
     img: Image.Image,
     preset: str = "flyer",
     autocontrast: bool = True,
+    tone_curve: bool = True,
+    local_contrast: bool = True,
     edge_sharpen: bool = True,
 ) -> Image.Image:
     if preset not in PRESETS:
@@ -216,12 +279,24 @@ def enhance_for_readability(
     y = ImageEnhance.Brightness(y).enhance(float(p["luma_brightness"]))
     y = ImageEnhance.Contrast(y).enhance(float(p["luma_contrast"]))
 
+    if tone_curve:
+        y = apply_s_curve(y, float(p["tone_curve"]))
+
+    if local_contrast:
+        y = apply_local_contrast(
+            y,
+            radius=float(p["local_contrast_radius"]),
+            percent=int(p["local_contrast_percent"]),
+            threshold=int(p["local_contrast_threshold"]),
+        )
+
     if edge_sharpen:
         edge_mask = make_edge_mask_from_luma(
             y,
             blur=float(p["edge_blur"]),
             gain=float(p["edge_gain"]),
             gamma=float(p["edge_gamma"]),
+            autocontrast_cutoff=float(p["edge_autocontrast_cutoff"]),
         )
 
         y_sharp = y.filter(
@@ -324,6 +399,8 @@ def readscale_image(
     scale: float = 3.0,
     preset: str = "flyer",
     autocontrast: bool = True,
+    tone_curve: bool = True,
+    local_contrast: bool = True,
     edge_sharpen: bool = True,
     quality: int = 95,
     resample: str = "lanczos",
@@ -358,6 +435,8 @@ def readscale_image(
             resized,
             preset=preset,
             autocontrast=autocontrast,
+            tone_curve=tone_curve,
+            local_contrast=local_contrast,
             edge_sharpen=edge_sharpen,
         )
 
@@ -378,6 +457,8 @@ def readscale_image(
     print(f"Scale : {scale}x")
     print(f"Preset : {preset}")
     print(f"Resample : {resample}")
+    print(f"Tone curve : {'on' if tone_curve else 'off'}")
+    print(f"Local contrast : {'on' if local_contrast else 'off'}")
 
 
 def main() -> None:
@@ -413,6 +494,16 @@ def main() -> None:
         "--no-autocontrast",
         action="store_true",
         help="Disable slight autocontrast",
+    )
+    parser.add_argument(
+        "--no-tone-curve",
+        action="store_true",
+        help="Disable readability-oriented luminance tone curve",
+    )
+    parser.add_argument(
+        "--no-local-contrast",
+        action="store_true",
+        help="Disable local contrast enhancement for small text and lines",
     )
     parser.add_argument(
         "--no-edge-sharpen",
@@ -458,6 +549,8 @@ def main() -> None:
                     scale=args.scale,
                     preset=args.preset,
                     autocontrast=not args.no_autocontrast,
+                    tone_curve=not args.no_tone_curve,
+                    local_contrast=not args.no_local_contrast,
                     edge_sharpen=not args.no_edge_sharpen,
                     quality=args.quality,
                     resample=args.resample,
@@ -474,6 +567,8 @@ def main() -> None:
             scale=args.scale,
             preset=args.preset,
             autocontrast=not args.no_autocontrast,
+            tone_curve=not args.no_tone_curve,
+            local_contrast=not args.no_local_contrast,
             edge_sharpen=not args.no_edge_sharpen,
             quality=args.quality,
             resample=args.resample,

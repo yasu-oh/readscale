@@ -6,13 +6,13 @@
 
 ## 特長
 
-- デフォルトで画像を **3倍** に拡大
+- デフォルトで画像を3倍に拡大
+- 出力ファイル名を省略可能
+- 出力ファイル名を省略した場合は `元ファイル名_readscale.拡張子` で保存
 - `--scale` で任意の倍率を指定可能
 - チラシ、ポスター、スライド、スクリーンショット、UI画像向け
-- 輝度成分を中心に補正し、色味の変化を抑制
-- 文字・罫線・アイコンなどのエッジを中心にシャープ化
-- JPEG由来のノイズや圧縮感を抑える `clean` プリセット
-- `lanczos` / `bicubic` / `bilinear` / `nearest` のリサンプリング方式を選択可能
+- 文字や罫線に効きやすいエッジ強調処理
+- 軽いコントラスト・色味補正
 - PNG / JPEG / WebP / BMP / TIFF 出力に対応
 - CLIで簡単に実行可能
 - AIモデル不要
@@ -31,7 +31,6 @@ ReadScale は、特に以下のような画像に向いています。
 - 表
 - チラシ
 - プレゼン資料
-- JPEG圧縮済みの告知画像や資料画像
 
 画像全体を強くシャープ化するのではなく、文字や線のようなエッジ部分を中心に補正することで、自然さを保ちながら可読性を高めます。
 
@@ -50,6 +49,20 @@ cd readscale
 
 ## 使い方
 
+出力ファイル名を省略できます。
+
+```bash
+python readscale.py input.png
+```
+
+この場合、入力ファイルと同じディレクトリに以下の名前で保存されます。
+
+```text
+input_readscale.png
+```
+
+出力ファイル名を明示することもできます。
+
 ```bash
 python readscale.py input.png output.png
 ```
@@ -62,6 +75,32 @@ python readscale.py input.png output.png
 1000 x 1413 px → 3000 x 4239 px
 ```
 
+## 出力ファイル名
+
+出力ファイル名を指定しない場合は、元のファイル名に `_readscale` を付けた名前で保存されます。
+
+```text
+flyer.png        -> flyer_readscale.png
+sample.jpg       -> sample_readscale.jpg
+document.webp    -> document_readscale.webp
+```
+
+出力先は、入力ファイルと同じディレクトリです。
+
+```bash
+python readscale.py images/input.png
+```
+
+```text
+images/input_readscale.png
+```
+
+任意の出力ファイル名を指定したい場合は、従来通り第2引数に指定します。
+
+```bash
+python readscale.py images/input.png output.png
+```
+
 ## 倍率指定
 
 `--scale` で拡大倍率を指定できます。
@@ -69,13 +108,13 @@ python readscale.py input.png output.png
 ### 4倍に拡大
 
 ```bash
-python readscale.py input.png output.png --scale 4
+python readscale.py input.png --scale 4
 ```
 
-### 小数倍率で拡大
+### 小数倍率も指定できます
 
 ```bash
-python readscale.py input.png output.png --scale 1.5
+python readscale.py input.png --scale 1.5
 ```
 
 ## 使用例
@@ -83,85 +122,70 @@ python readscale.py input.png output.png --scale 1.5
 ### 基本的なアップスケール
 
 ```bash
-python readscale.py flyer.png flyer_upscaled.png
+python readscale.py input.png
 ```
 
 ### 小さい文字をより強めに補正
 
 ```bash
-python readscale.py input.png output.png --preset text
+python readscale.py input.png --preset text
 ```
 
-### 写真やイラストが多い画像を自然に補正
+### 写真が多い画像向けに自然に補正
 
 ```bash
-python readscale.py input.png output.png --preset soft
+python readscale.py input.png --preset soft
 ```
 
-### JPEG圧縮ノイズが気になる画像を補正
+### ノイズ感を少し抑えて補正
 
 ```bash
-python readscale.py input.jpg output.png --preset clean
+python readscale.py input.png --preset clean
 ```
 
 ### 自動コントラスト補正を無効化
 
 ```bash
-python readscale.py input.png output.png --no-autocontrast
+python readscale.py input.png --no-autocontrast
 ```
 
 ### エッジ強調を無効化
 
 ```bash
-python readscale.py input.png output.png --no-edge-sharpen
+python readscale.py input.png --no-edge-sharpen
 ```
 
 ### JPEG / WebP の品質を指定
 
 ```bash
-python readscale.py input.jpg output.jpg --quality 95
+python readscale.py input.jpg --quality 95
 ```
 
-### リサンプリング方式を指定
+### リサイズ方式を指定
 
 ```bash
-python readscale.py input.png output.png --resample bicubic
+python readscale.py input.png --resample bicubic
 ```
 
 ### DPIメタデータを引き継がない
 
 ```bash
-python readscale.py input.png output.png --no-keep-dpi
+python readscale.py input.png --no-keep-dpi
 ```
 
 ## プリセット
 
-| プリセット | 説明 |
-|---|---|
+| プリセット   | 説明                   |
+| ------- | -------------------- |
 | `flyer` | チラシ、ポスター、スライド向けの標準設定 |
-| `text` | 小さい文字や文書画像向けの強めの補正 |
-| `soft` | 写真やイラストが多い画像向けの自然な補正 |
-| `clean` | JPEG圧縮ノイズやざらつきが気になる画像向け |
+| `text`  | 小さい文字や文書画像向けの強めの補正   |
+| `soft`  | 写真やイラストが多い画像向けの自然な補正 |
+| `clean` | JPEGノイズなどを少し抑えたい場合向け |
 
 デフォルトは `flyer` です。
 
 ```bash
-python readscale.py input.png output.png --preset flyer
-```
-
-## リサンプリング方式
-
-| 方式 | 説明 |
-|---|---|
-| `lanczos` | 高品質な拡大向け。デフォルト |
-| `bicubic` | やや柔らかい拡大結果にしたい場合 |
-| `bilinear` | 軽量だが、文字入り画像ではやや甘くなりやすい |
-| `nearest` | ピクセルアートやドット絵向け。通常のチラシ用途には非推奨 |
-
-デフォルトは `lanczos` です。
-
-```bash
-python readscale.py input.png output.png --resample lanczos
+python readscale.py input.png --preset flyer
 ```
 
 ## 推奨設定
@@ -169,44 +193,59 @@ python readscale.py input.png output.png --resample lanczos
 ### チラシ・ポスター向け
 
 ```bash
-python readscale.py input.png output.png
+python readscale.py input.png
 ```
 
 ### 小さい文字が多い画像向け
 
 ```bash
-python readscale.py input.png output.png --preset text
+python readscale.py input.png --preset text
 ```
 
 ### 写真を含む資料向け
 
 ```bash
-python readscale.py input.png output.png --preset soft
+python readscale.py input.png --preset soft
 ```
 
-### JPEG由来のノイズが気になる画像向け
+### JPEGノイズが気になる画像向け
 
 ```bash
-python readscale.py input.jpg output.png --preset clean
+python readscale.py input.jpg --preset clean
 ```
 
 ### 大きく印刷・表示したい場合
 
 ```bash
-python readscale.py input.png output.png --scale 4
+python readscale.py input.png --scale 4
 ```
 
 ## オプション
 
-| オプション | デフォルト | 説明 |
-|---|---:|---|
-| `--scale` | `3.0` | 拡大倍率 |
-| `--preset` | `flyer` | 補正プリセット。`flyer` / `text` / `soft` / `clean` |
-| `--resample` | `lanczos` | リサンプリング方式。`lanczos` / `bicubic` / `bilinear` / `nearest` |
-| `--no-autocontrast` | 無効 | 自動コントラスト補正を無効化 |
-| `--no-edge-sharpen` | 無効 | エッジ強調を無効化 |
-| `--quality` | `95` | JPEG / WebP の保存品質 |
-| `--no-keep-dpi` | 無効 | 入力画像のDPIメタデータを引き継がない |
+| オプション               |     デフォルト | 説明                                       |
+| ------------------- | --------: | ---------------------------------------- |
+| `input`             |        必須 | 入力画像ファイル                                 |
+| `output`            |       省略可 | 出力画像ファイル。省略時は `<元ファイル名>_readscale.<拡張子>` |
+| `--scale`           |     `3.0` | 拡大倍率                                     |
+| `--preset`          |   `flyer` | 補正プリセット                                  |
+| `--resample`        | `lanczos` | リサイズ方式                                   |
+| `--no-autocontrast` |        無効 | 自動コントラスト補正を無効化                           |
+| `--no-edge-sharpen` |        無効 | エッジ強調を無効化                                |
+| `--quality`         |      `95` | JPEG / WebP の保存品質                        |
+| `--no-keep-dpi`     |        無効 | 入力画像のDPIメタデータを引き継がない                     |
+
+## リサイズ方式
+
+`--resample` でリサイズ方式を指定できます。
+
+| 方式         | 説明                |
+| ---------- | ----------------- |
+| `lanczos`  | 高品質な標準設定。通常はこれを推奨 |
+| `bicubic`  | やや柔らかい結果になりやすい    |
+| `bilinear` | 軽量だが画質は控えめ        |
+| `nearest`  | ドット絵やピクセル画像向け     |
+
+通常はデフォルトの `lanczos` のままで問題ありません。
 
 ## 処理の流れ
 
@@ -214,14 +253,13 @@ ReadScale は、おおまかに以下の処理を行います。
 
 1. 入力画像を読み込む
 2. EXIFの向き情報を補正
-3. 画像モードを RGB / RGBA に正規化
-4. 指定倍率で画像を拡大
-5. 輝度成分を中心に自動コントラスト補正
+3. 指定倍率で画像を拡大
+4. 指定された方式で高品質リサイズ
+5. 軽い自動コントラスト補正
 6. 明るさ・コントラスト・色味を微調整
-7. 局所コントラストからエッジマスクを生成
+7. 画像からエッジマスクを生成
 8. 文字や罫線などのエッジ部分を中心にシャープ化
-9. 必要に応じてアルファチャンネルを復元
-10. PNG / JPEG / WebP / BMP / TIFF などで保存
+9. PNG / JPEG / WebP / BMP / TIFF などで保存
 
 この処理により、画像全体を過度に加工せず、文字や線の読みやすさを改善します。
 
@@ -231,31 +269,19 @@ ReadScale は、おおまかに以下の処理を行います。
 
 よく使う入力形式:
 
-- PNG
-- JPEG
-- WebP
-- BMP
-- TIFF
+* PNG
+* JPEG
+* WebP
+* BMP
+* TIFF
 
 出力形式:
 
-- PNG
-- JPEG
-- WebP
-- BMP
-- TIFF
-
-出力ファイルの拡張子は、以下に対応しています。
-
-```text
-.png
-.jpg
-.jpeg
-.webp
-.bmp
-.tif
-.tiff
-```
+* PNG
+* JPEG
+* WebP
+* BMP
+* TIFF
 
 ## 制限事項
 
@@ -265,11 +291,12 @@ ReadScale は AI 超解像モデルではありません。
 
 より良い結果を得るには、以下を推奨します。
 
-- できるだけ高解像度の元画像を使う
-- 同じ画像を何度も繰り返しアップスケールしない
-- まずは `flyer` を使い、文字が読みにくい場合だけ `text` を試す
-- JPEG由来のざらつきや圧縮ノイズが気になる場合は `clean` を試す
-- 倍率を上げすぎるとファイルサイズが大きくなるため、用途に応じて `--scale 2` 〜 `--scale 4` 程度を使い分ける
+* できるだけ高解像度の元画像を使う
+* 同じ画像を何度も繰り返しアップスケールしない
+* まずは `flyer` を使い、文字が読みにくい場合だけ `text` を試す
+* 写真が多い場合は `soft` を試す
+* JPEGノイズが気になる場合は `clean` を試す
+* 倍率を上げすぎるとファイルサイズが大きくなるため、用途に応じて `--scale 2` 〜 `--scale 4` 程度を使い分ける
 
 ## ライセンス
 

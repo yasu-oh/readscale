@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -99,7 +100,6 @@ def ensure_rgb_or_rgba(img: Image.Image) -> Image.Image:
         or (img.mode == "P" and "transparency" in img.info)
         or "A" in img.getbands()
     )
-
     return img.convert("RGBA" if has_alpha else "RGB")
 
 
@@ -109,7 +109,6 @@ def get_output_size(img: Image.Image, scale: float) -> tuple[int, int]:
 
     width = max(1, round(img.width * scale))
     height = max(1, round(img.height * scale))
-
     return width, height
 
 
@@ -122,7 +121,6 @@ def resize_by_scale(
         raise ValueError(f"Unknown resampling filter: {resample}")
 
     width, height = get_output_size(img, scale)
-
     return img.resize(
         (width, height),
         RESAMPLING_FILTERS[resample],
@@ -140,7 +138,6 @@ def apply_gamma(mask: Image.Image, gamma: float) -> Image.Image:
         min(255, max(0, round(((i / 255.0) ** gamma) * 255)))
         for i in range(256)
     ]
-
     return mask.point(lut)
 
 
@@ -161,7 +158,6 @@ def make_edge_mask_from_luma(
     local_max = base.filter(ImageFilter.MaxFilter(3))
     local_min = base.filter(ImageFilter.MinFilter(3))
     edges = ImageChops.difference(local_max, local_min)
-
     edges = ImageOps.autocontrast(edges)
 
     if blur > 0:
@@ -171,7 +167,6 @@ def make_edge_mask_from_luma(
         edges = ImageEnhance.Contrast(edges).enhance(gain)
 
     edges = apply_gamma(edges, gamma)
-
     return edges
 
 
@@ -191,7 +186,6 @@ def merge_alpha(rgb: Image.Image, alpha: Image.Image | None) -> Image.Image:
 
     out = rgb.convert("RGBA")
     out.putalpha(alpha)
-
     return out
 
 
@@ -205,7 +199,6 @@ def enhance_for_readability(
         raise ValueError(f"Unknown preset: {preset}")
 
     p = PRESETS[preset]
-
     rgb, alpha = split_alpha(img)
 
     if int(p["jpeg_noise_reduce"]) > 0:
@@ -319,9 +312,15 @@ def save_image(
         img.save(output_path, **save_kwargs)
 
 
+def make_default_output_path(input_path: Path) -> Path:
+    return input_path.with_name(
+        f"{input_path.stem}_readscale{input_path.suffix}"
+    )
+
+
 def readscale_image(
     input_path: str,
-    output_path: str,
+    output_path: str | None = None,
     scale: float = 3.0,
     preset: str = "flyer",
     autocontrast: bool = True,
@@ -331,7 +330,11 @@ def readscale_image(
     keep_dpi: bool = True,
 ) -> None:
     input_path_obj = Path(input_path)
-    output_path_obj = Path(output_path)
+
+    if output_path is None:
+        output_path_obj = make_default_output_path(input_path_obj)
+    else:
+        output_path_obj = Path(output_path)
 
     if not input_path_obj.exists():
         raise FileNotFoundError(f"Input file not found: {input_path_obj}")
@@ -368,12 +371,12 @@ def readscale_image(
     with Image.open(output_path_obj) as check:
         output_size = check.size
 
-    print(f"Saved        : {output_path_obj}")
+    print(f"Saved : {output_path_obj}")
     print(f"Original size: {original_size[0]} x {original_size[1]} px")
-    print(f"Output size  : {output_size[0]} x {output_size[1]} px")
-    print(f"Scale        : {scale}x")
-    print(f"Preset       : {preset}")
-    print(f"Resample     : {resample}")
+    print(f"Output size : {output_size[0]} x {output_size[1]} px")
+    print(f"Scale : {scale}x")
+    print(f"Preset : {preset}")
+    print(f"Resample : {resample}")
 
 
 def main() -> None:
@@ -382,7 +385,12 @@ def main() -> None:
     )
 
     parser.add_argument("input", help="Input image path")
-    parser.add_argument("output", help="Output image path")
+    parser.add_argument(
+        "output",
+        nargs="?",
+        default=None,
+        help="Output image path. Default: <input_filename>_readscale.<ext>",
+    )
 
     parser.add_argument(
         "--scale",
@@ -390,40 +398,34 @@ def main() -> None:
         default=3.0,
         help="Upscale factor. Default: 3.0",
     )
-
     parser.add_argument(
         "--preset",
         choices=PRESETS.keys(),
         default="flyer",
         help="Enhancement preset. Default: flyer",
     )
-
     parser.add_argument(
         "--resample",
         choices=RESAMPLING_FILTERS.keys(),
         default="lanczos",
         help="Resampling filter. Default: lanczos",
     )
-
     parser.add_argument(
         "--no-autocontrast",
         action="store_true",
         help="Disable slight autocontrast",
     )
-
     parser.add_argument(
         "--no-edge-sharpen",
         action="store_true",
         help="Disable edge-aware sharpening",
     )
-
     parser.add_argument(
         "--quality",
         type=int,
         default=95,
         help="JPEG/WebP quality. Default: 95",
     )
-
     parser.add_argument(
         "--no-keep-dpi",
         action="store_true",

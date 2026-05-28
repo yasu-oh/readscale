@@ -1,0 +1,17 @@
+# ReadScale supported image files
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.bmp
+*.tif
+*.tiff
+
+# Uppercase extensions
+*.PNG
+*.JPG
+*.JPEG
+*.WEBP
+*.BMP
+*.TIF
+*.TIFF

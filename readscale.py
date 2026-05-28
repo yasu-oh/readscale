@@ -371,6 +371,7 @@ def readscale_image(
     with Image.open(output_path_obj) as check:
         output_size = check.size
 
+    print(f"====================================")
     print(f"Saved : {output_path_obj}")
     print(f"Original size: {original_size[0]} x {original_size[1]} px")
     print(f"Output size : {output_size[0]} x {output_size[1]} px")
@@ -383,15 +384,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Upscale flyer/text images by scale with readability enhancement."
     )
-
-    parser.add_argument("input", help="Input image path")
+    parser.add_argument("input", help="Input image path or directory")
     parser.add_argument(
         "output",
         nargs="?",
         default=None,
-        help="Output image path. Default: <input_filename>_readscale.<ext>",
+        help="Output image path or directory. Default: <input_filename>_readscale.<ext> or <input_dir>_readscale/",
     )
-
     parser.add_argument(
         "--scale",
         type=float,
@@ -431,20 +430,55 @@ def main() -> None:
         action="store_true",
         help="Do not preserve input DPI metadata when possible",
     )
-
     args = parser.parse_args()
 
-    readscale_image(
-        input_path=args.input,
-        output_path=args.output,
-        scale=args.scale,
-        preset=args.preset,
-        autocontrast=not args.no_autocontrast,
-        edge_sharpen=not args.no_edge_sharpen,
-        quality=args.quality,
-        resample=args.resample,
-        keep_dpi=not args.no_keep_dpi,
-    )
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Error: Input path not found: {input_path}")
+        exit(1)
+
+    if input_path.is_dir():
+        # Directory mode
+        output_dir = Path(args.output) if args.output else input_path.with_name(f"{input_path.name}_readscale")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Find all supported images
+        files = [f for f in input_path.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_OUTPUT_EXTENSIONS]
+        if not files:
+            print(f"No supported images found in {input_path}")
+            return
+
+        print(f"Processing {len(files)} images from {input_path} to {output_dir}...")
+        for f in files:
+            out_f = output_dir / f.name
+            try:
+                readscale_image(
+                    input_path=str(f),
+                    output_path=str(out_f),
+                    scale=args.scale,
+                    preset=args.preset,
+                    autocontrast=not args.no_autocontrast,
+                    edge_sharpen=not args.no_edge_sharpen,
+                    quality=args.quality,
+                    resample=args.resample,
+                    keep_dpi=not args.no_keep_dpi,
+                )
+            except Exception as e:
+                print(f"Failed to process {f.name}: {e}")
+        print("Done.")
+    else:
+        # File mode
+        readscale_image(
+            input_path=args.input,
+            output_path=args.output,
+            scale=args.scale,
+            preset=args.preset,
+            autocontrast=not args.no_autocontrast,
+            edge_sharpen=not args.no_edge_sharpen,
+            quality=args.quality,
+            resample=args.resample,
+            keep_dpi=not args.no_keep_dpi,
+        )
 
 
 if __name__ == "__main__":

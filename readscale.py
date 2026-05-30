@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -124,6 +127,19 @@ SUPPORTED_OUTPUT_EXTENSIONS = {
     ".tif",
     ".tiff",
 }
+
+
+@dataclass(frozen=True)
+class ReadscaleResult:
+    input_path: Path
+    output_path: Path
+    original_size: tuple[int, int]
+    output_size: tuple[int, int]
+    scale: float
+    preset: str
+    resample: str
+    tone_curve: bool
+    local_contrast: bool
 
 
 def ensure_rgb_or_rgba(img: Image.Image) -> Image.Image:
@@ -467,7 +483,8 @@ def readscale_image(
     quality: int = 95,
     resample: str = "lanczos",
     keep_dpi: bool = True,
-) -> None:
+    show_summary: bool = True,
+) -> ReadscaleResult:
     input_path_obj = Path(input_path)
 
     if output_path is None:
@@ -512,15 +529,48 @@ def readscale_image(
     with Image.open(output_path_obj) as check:
         output_size = check.size
 
+    result = ReadscaleResult(
+        input_path=input_path_obj,
+        output_path=output_path_obj,
+        original_size=original_size,
+        output_size=output_size,
+        scale=scale,
+        preset=preset,
+        resample=resample,
+        tone_curve=tone_curve,
+        local_contrast=local_contrast,
+    )
+
+    if show_summary:
+        print_result_summary(result)
+
+    return result
+
+
+def print_result_summary(result: ReadscaleResult) -> None:
     print(f"====================================")
-    print(f"Saved : {output_path_obj}")
-    print(f"Original size: {original_size[0]} x {original_size[1]} px")
-    print(f"Output size : {output_size[0]} x {output_size[1]} px")
-    print(f"Scale : {scale}x")
-    print(f"Preset : {preset}")
-    print(f"Resample : {resample}")
-    print(f"Tone curve : {'on' if tone_curve else 'off'}")
-    print(f"Local contrast : {'on' if local_contrast else 'off'}")
+    print(f"Saved : {result.output_path}")
+    print(f"Original size: {result.original_size[0]} x {result.original_size[1]} px")
+    print(f"Output size : {result.output_size[0]} x {result.output_size[1]} px")
+    print(f"Scale : {result.scale}x")
+    print(f"Preset : {result.preset}")
+    print(f"Resample : {result.resample}")
+    print(f"Tone curve : {'on' if result.tone_curve else 'off'}")
+    print(f"Local contrast : {'on' if result.local_contrast else 'off'}")
+
+
+def get_worker_count(total_files: int) -> int:
+    cpu_count = os.cpu_count() or 1
+    return max(1, min(total_files, cpu_count))
+
+
+def print_progress(
+    completed: int,
+    total: int,
+    message: str,
+) -> None:
+    percent = (completed / total) * 100
+    print(f"[{percent:6.2f}%] {completed}/{total} {message}", flush=True)
 
 
 def main() -> None:
@@ -596,18 +646,32 @@ def main() -> None:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Find all supported images
-        files = [f for f in input_path.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_OUTPUT_EXTENSIONS]
+        files = sorted(
+            [
+                f
+                for f in input_path.iterdir()
+                if f.is_file() and f.suffix.lower() in SUPPORTED_OUTPUT_EXTENSIONS
+            ],
+            key=lambda f: f.name.lower(),
+        )
         if not files:
             print(f"No supported images found in {input_path}")
             return
 
-        print(f"Processing {len(files)} images from {input_path} to {output_dir}...")
-        for f in files:
-            out_f = output_dir / f.name
-            try:
-                readscale_image(
+        total = len(files)
+        worker_count = get_worker_count(total)
+        print(
+            f"Processing {total} images from {input_path} to {output_dir} "
+            f"with {worker_count} worker(s)..."
+        )
+
+        failed = 0
+        with ProcessPoolExecutor(max_workers=worker_count) as executor:
+            future_to_file = {
+                executor.submit(
+                    readscale_image,
                     input_path=str(f),
-                    output_path=str(out_f),
+                    output_path=str(output_dir / f.name),
                     scale=args.scale,
                     preset=args.preset,
                     autocontrast=not args.no_autocontrast,
@@ -617,10 +681,39 @@ def main() -> None:
                     quality=args.quality,
                     resample=args.resample,
                     keep_dpi=not args.no_keep_dpi,
-                )
-            except Exception as e:
-                print(f"Failed to process {f.name}: {e}")
-        print("Done.")
+                    show_summary=False,
+                ): f
+                for f in files
+            }
+
+            completed = 0
+            for future in as_completed(future_to_file):
+                source = future_to_file[future]
+                completed += 1
+                try:
+                    result = future.result()
+                except Exception as e:
+                    failed += 1
+                    print_progress(
+                        completed,
+                        total,
+                        f"Failed: {source.name}: {e}",
+                    )
+                else:
+                    print_progress(
+                        completed,
+                        total,
+                        (
+                            f"Saved: {result.output_path} "
+                            f"({result.original_size[0]}x{result.original_size[1]} "
+                            f"-> {result.output_size[0]}x{result.output_size[1]} px)"
+                        ),
+                    )
+
+        if failed:
+            print(f"Done. {total - failed} succeeded, {failed} failed.")
+        else:
+            print("Done.")
     else:
         # File mode
         readscale_image(

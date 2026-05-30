@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-
 import argparse
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
+from tqdm import tqdm
 from PIL import (
     Image,
     ImageChops,
@@ -548,7 +547,7 @@ def readscale_image(
 
 
 def print_result_summary(result: ReadscaleResult) -> None:
-    print(f"====================================")
+    print("====================================")
     print(f"Saved : {result.output_path}")
     print(f"Original size: {result.original_size[0]} x {result.original_size[1]} px")
     print(f"Output size : {result.output_size[0]} x {result.output_size[1]} px")
@@ -562,15 +561,6 @@ def print_result_summary(result: ReadscaleResult) -> None:
 def get_worker_count(total_files: int) -> int:
     cpu_count = os.cpu_count() or 1
     return max(1, min(total_files, cpu_count))
-
-
-def print_progress(
-    completed: int,
-    total: int,
-    message: str,
-) -> None:
-    percent = (completed / total) * 100
-    print(f"[{percent:6.2f}%] {completed}/{total} {message}", flush=True)
 
 
 def main() -> None:
@@ -686,29 +676,16 @@ def main() -> None:
                 for f in files
             }
 
-            completed = 0
-            for future in as_completed(future_to_file):
-                source = future_to_file[future]
-                completed += 1
-                try:
-                    result = future.result()
-                except Exception as e:
-                    failed += 1
-                    print_progress(
-                        completed,
-                        total,
-                        f"Failed: {source.name}: {e}",
-                    )
-                else:
-                    print_progress(
-                        completed,
-                        total,
-                        (
-                            f"Saved: {result.output_path} "
-                            f"({result.original_size[0]}x{result.original_size[1]} "
-                            f"-> {result.output_size[0]}x{result.output_size[1]} px)"
-                        ),
-                    )
+            with tqdm(total=total, desc="Processing images", unit="img") as pbar:
+                for future in as_completed(future_to_file):
+                    source = future_to_file[future]
+                    try:
+                        future.result()
+                    except Exception as e:
+                        failed += 1
+                        pbar.write(f"Failed: {source.name}: {e}")
+                    finally:
+                        pbar.update(1)
 
         if failed:
             print(f"Done. {total - failed} succeeded, {failed} failed.")

@@ -1,6 +1,6 @@
 # ReadScale
 
-**ReadScale** は、チラシ・スライド・スクリーンショット・資料画像など、文字を含む画像を読みやすく拡大するための小さな画像アップスケールツールです。
+**ReadScale** は、チラシ・スライド・スクリーンショット・資料画像など、文字を含む画像を読みやすく拡大するためのアップスケールツールです。
 
 倍率指定のリサイズに加えて、文字・罫線・アイコンの輪郭や明暗差を補正し、画像全体を過度に加工せずに可読性を高めます。
 
@@ -34,12 +34,9 @@ ReadScale は、特に以下のような画像に向いています。
 ## インストール
 
 ```bash
-pip install pillow
-```
-
-```bash
 git clone https://github.com/yasu-oh/readscale.git
 cd readscale
+pip install .
 ```
 
 ## 使い方
@@ -47,38 +44,38 @@ cd readscale
 ### ファイルを処理
 
 ```bash
-python readscale.py input.png
+readscale input.png
 ```
 
 出力先を省略すると、入力画像と同じディレクトリに `input_readscale.png` のような名前で保存されます。出力ファイルを指定することもできます。
 
 ```bash
-python readscale.py input.png output.png
+readscale input.png output.png
 ```
 
 ### フォルダを一括処理
 
 ```bash
-python readscale.py input_folder/
+readscale input_folder/
 ```
 
 出力先を省略すると、`input_folder_readscale/` に処理済み画像を保存します。出力先フォルダを指定することもできます。
 
 ```bash
-python readscale.py input_folder/ output_results/
+readscale input_folder/ output_results/
 ```
 
 ## よく使う指定
 
 | 目的 | コマンド |
 | :--- | :--- |
-| 標準設定で処理 | `python readscale.py input.png` |
-| 小さい文字を強めに補正 | `python readscale.py input.png --preset text` |
-| 写真やイラストを自然に補正 | `python readscale.py input.png --preset soft` |
-| JPEGノイズを少し抑える | `python readscale.py input.jpg --preset clean` |
-| 4倍に拡大 | `python readscale.py input.png --scale 4` |
-| リサイズ方式を変更 | `python readscale.py input.png --resample bicubic` |
-| JPEG / WebP の品質を指定 | `python readscale.py input.jpg --quality 95` |
+| 標準設定で処理 | `readscale input.png` |
+| 小さい文字を強めに補正 | `readscale input.png --preset text` |
+| 写真やイラストを自然に補正 | `readscale input.png --preset soft` |
+| JPEGノイズを少し抑える | `readscale input.jpg --preset clean` |
+| 4倍に拡大 | `readscale input.png --scale 4` |
+| リサイズ方式を変更 | `readscale input.png --resample bicubic` |
+| JPEG / WebP の品質を指定 | `readscale input.jpg --quality 95` |
 
 ## プリセット
 

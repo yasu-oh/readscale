@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "readscale"
+version = "0.1.0"
+description = "Upscale and enhance readability of text/flyer images using Pillow"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "Pillow>=10.0.0",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+readscale = "readscale:main"
+
+[project.urls]
+Homepage = "https://github.com/yasu-oh/readscale"
+
+[tool.setuptools.packages.find]
+include = ["readscale*"]

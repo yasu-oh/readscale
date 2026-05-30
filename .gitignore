@@ -16,6 +16,16 @@
 *.TIF
 *.TIFF
 
-# Python runtime artifacts
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Python cache
 __pycache__/
 *.py[cod]
+*$py.class
+
+# OS specific
+.DS_Store
+Thumbs.db

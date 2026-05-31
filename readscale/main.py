@@ -342,6 +342,7 @@ def enhance_for_readability(
 
     ycbcr = rgb.convert("YCbCr")
     y, cb, cr = ycbcr.split()
+    edge_mask_luma = y.copy()
 
     if autocontrast:
         y = ImageOps.autocontrast(
@@ -365,7 +366,7 @@ def enhance_for_readability(
 
     if edge_sharpen:
         edge_mask = make_edge_mask_from_luma(
-            y,
+            edge_mask_luma,
             blur=float(p["edge_blur"]),
             gain=float(p["edge_gain"]),
             gamma=float(p["edge_gamma"]),

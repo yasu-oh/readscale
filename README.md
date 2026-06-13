@@ -35,7 +35,7 @@ ReadScale は、特に以下のような画像に向いています。
 ```bash
 git clone https://github.com/yasu-oh/readscale.git
 cd readscale
-pip install .
+pip install -e .
 ```
 
 ## 使い方
